@@ -1,0 +1,105 @@
+---
+title: "Volleyball - 5/19/20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(magrittr)
+library(ggflags)
+
+vb_matches <-
+  readr::read_csv(
+    'https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-19/vb_matches.csv',
+    guess_max = 76000
+  ) %>% 
+  mutate(round = str_extract(round, "\\d+"))
+
+abbr <- read.csv("country_abbr.csv", colClasses = "character")
+```
+
+```{r, fig.width = 5, fig.asp = 3/2}
+countries <-
+  unique(with(
+    vb_matches,
+    c(
+      country,
+      w_p1_country,
+      w_p2_country,
+      l_p1_country,
+      l_p2_country
+    )
+  ))
+
+outcome_by_country <- tibble(country = countries) %>%
+  rowwise() %>%
+  mutate(
+    win = sum(vb_matches$w_p1_country == country, 
+              vb_matches$w_p2_country == country, na.rm = T),
+    lose = sum(vb_matches$l_p1_country == country, 
+               vb_matches$l_p2_country == country, na.rm = T),
+    wlr = win / lose
+  ) %>%
+  ungroup() %>% 
+  left_join(abbr, by = "country")
+
+outcome_by_country$abbr[outcome_by_country$country=="Russia"] <- "RU"
+
+outcome_by_country %>%
+  top_n(n = 10, wt = wlr) %>%
+  ggplot(aes(fct_reorder(country, wlr), wlr, country = as.factor(abbr))) +
+  geom_col(fill="dodgerblue4") +
+  geom_hline(yintercept = 1, color="black", linetype = "dotted", size = 1) +
+  geom_flag(size=8, color = "black") +
+  scale_y_continuous("Win/Lose Ratio", expand = expansion(c(0,0), c(0,0.1))) +
+  scale_x_discrete("Country") +
+  ggtitle("Win/Lose Ratio for Top 10 Countries") +
+  coord_flip() +
+  ggthemes::theme_solarized()
+
+ggsave("win_lose.png")
+```
+
+
+
+```{r fig.width = 10}
+vb_matches <- vb_matches %>% 
+  mutate(w_team = paste(w_player1, w_player2, sep = ", "),
+         l_team = paste(l_player1, w_player2, sep = ", ")) 
+
+top_teams <- vb_matches %>% 
+  count(gender, w_team) %>% 
+  group_by(gender) %>% 
+  top_n(5, wt = n)
+
+vb_teams <- vb_matches %>%
+  select(year, gender, w_team, l_team) %>%
+  pivot_longer(c("w_team", "l_team"),
+               names_to = "win_lose",
+               values_to = "team") %>%
+  count(team, gender, year, win_lose) %>%
+  pivot_wider(
+    names_from = win_lose,
+    values_from = n,
+    values_fill = list(n = 0)
+  ) %>%
+  rename(wins = w_team,
+         losses = l_team) %>%
+  group_by(year, team) %>%
+  mutate(win_pct = wins / sum(wins, losses)) %>%
+  filter(team %in% top_teams$w_team)
+
+vb_teams %>%
+  ggplot(aes(year, wins, color = win_pct)) +
+  geom_line(size = 2) +
+  facet_wrap(~team) +
+  scale_x_continuous("Year") +
+  scale_y_continuous("Wins") +
+  scale_color_continuous("Win %", limits = c(0,1))+
+  theme_minimal()
+```
