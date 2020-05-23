@@ -12,6 +12,7 @@ library(tidyverse)
 library(lubridate)
 library(magrittr)
 library(ggflags)
+library(ggridges)
 
 vb_matches <-
   readr::read_csv(
