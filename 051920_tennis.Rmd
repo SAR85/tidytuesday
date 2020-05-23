@@ -67,7 +67,7 @@ ggsave("win_lose.png")
 
 
 
-```{r fig.width = 10}
+```{r fig.width=10}
 vb_matches <- vb_matches %>% 
   mutate(w_team = paste(w_player1, w_player2, sep = ", "),
          l_team = paste(l_player1, w_player2, sep = ", ")) 
@@ -91,15 +91,20 @@ vb_teams <- vb_matches %>%
   rename(wins = w_team,
          losses = l_team) %>%
   group_by(year, team) %>%
-  mutate(win_pct = wins / sum(wins, losses)) %>%
+  mutate(win_pct = wins / sum(wins, losses)) %>% 
+  ungroup() %>% 
+  mutate_if(is.character, as.factor) %>% 
   filter(team %in% top_teams$w_team)
 
 vb_teams %>%
-  ggplot(aes(year, wins, color = win_pct)) +
-  geom_line(size = 2) +
-  facet_wrap(~team) +
-  scale_x_continuous("Year") +
-  scale_y_continuous("Wins") +
-  scale_color_continuous("Win %", limits = c(0,1))+
-  theme_minimal()
+  ggplot(aes(x = wins, y = team, group = team, fill = stat(x))) +
+  geom_density_ridges_gradient(size = 1) +
+  scale_x_continuous("Wins") +
+  scale_y_discrete("Team") +
+  scale_fill_viridis_c("Win %", option = "C") +
+  ggtitle("Distribution of wins per year for top 5 men's and women's teams") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggsave("win_distribution.png", width = 10)
 ```
