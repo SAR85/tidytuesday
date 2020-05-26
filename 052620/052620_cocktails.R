@@ -42,8 +42,9 @@ set.seed(12345)
 mod <- train(
   glass ~ category + alcoholic + ingredient + ingred_count,
   data = train,
-  method = "knn"
-  # trControl = ctrl
+  method = "knn",
+  trControl = ctrl,
+  tuneGrid = expand.grid(k = c(3,5,7,10))
 )
 
 pred <- predict(mod, test)
